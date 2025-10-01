@@ -139,7 +139,7 @@ class SellOrderView(CreateAPIView):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self,serializer):
+    def perform_create(self,serializer):    
         account = self.request.user.trading_account
         order = serializer.save(account=account, order_type='SELL', status='PENDING')
         process_order.delay(order.id)

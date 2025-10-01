@@ -1,10 +1,29 @@
 # Python cache
 __pycache__/
 *.pyc
-*.pyo
 
 # Virtual environment
 .venv/
-venv/
+env/
 
+# IDE / Editor settings
+.idea/
+.vscode/
 
+# Databases and cache files
+*.sqlite3
+dump.rdb
+celerybeat-schedule.db
+
+# Logs
+*.log
+
+# Reports (auto generated)
+reports/
+
+# Environment / secrets
+.env
+*.json
+
+# OS files
+.DS_Store

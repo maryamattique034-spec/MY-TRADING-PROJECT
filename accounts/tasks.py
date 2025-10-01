@@ -79,7 +79,7 @@ def process_order(order_id):
                     old_balance = account.balance
                     account.balance += total_cost
                     account.save()
-                    logger.info(f"Account #{account.id} balance updated: {old_balance} -> {account.balance}")
+                    logger.info(f"  #{account.id} balance updated: {old_balance} -> {account.balance}")
 
                     LedgerEntry.objects.create(account=account, transaction_type='deposit', amount=total_cost)
                     logger.info(f"LedgerEntry created for deposit of {total_cost} for Account #{account.id}")
@@ -177,6 +177,13 @@ def send_daily_report():
     email.send()
     
     return "Report sent successfully"
+
+
+
+
+#fizza -> balance 10970 
+
+# MSFT ->price 514
 
 
 
