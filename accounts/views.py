@@ -8,12 +8,13 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated , IsAdminUser
 from rest_framework.generics import ListAPIView,CreateAPIView, RetrieveUpdateDestroyAPIView, RetrieveAPIView
-#from django_filters.rest_framework import DjangoFilterBackend
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.views import APIView
 from decimal import Decimal
 from .tasks import process_order
+import logging
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 @api_view(['POST'])
@@ -22,17 +23,12 @@ def register_user(request):
     serializer= RegisterSerializer(data=data)
     if serializer.is_valid():
         user=serializer.save()
-        print("Created user:", user)
-        print("Trading account check:", TradingAccount.objects.filter(user=user).exists())
-
+        logger.info(f"Created User {user.username} (id:{user.id})")
+        trading_account_exists=TradingAccount.objects.filter(user=user).exists()
+        logger.info(f"Trading Account created for user: {trading_account_exists}")
         return Response({"message":"User registered successfully"}, status=status.HTTP_201_CREATED)
 
     return Response({"errors": serializer.errors}, status =status.HTTP_400_BAD_REQUEST)
-
-#gpt
-# class RegisterView(generics.CreateAPIView):
-#     queryset = CustomUser.objects.all()
-#     serializer_class = RegisterSerializer
 
 
 @api_view(['POST'])
@@ -43,11 +39,14 @@ def login_user(request):
 
     if user is not None:
         refresh= RefreshToken.for_user(user)
+        logger.info(f"User logged in successfully: {username}")
+
         return Response({
             "access":str(refresh.access_token),
             "refresh":str(refresh),
                          }, status= status.HTTP_200_OK)
     else:
+        logger.warning(f"Failed login attempt for user: {username}")
         return Response({"error":"Invalid credentials"}, status= status.HTTP_401_UNAUTHORIZED)
 
 @api_view(['GET'])
@@ -79,7 +78,6 @@ class StockListView(ListAPIView):
     queryset = Stock.objects.all()
     serializer_class = StockSerializer
     permission_classes= [IsAuthenticated]
-    #filter_backends = [DjangoFilterBackend]
     filterset_fields = ['ticker', 'exchange']
 
 class StockBulkUploadView(CreateAPIView):
@@ -91,7 +89,8 @@ class StockBulkUploadView(CreateAPIView):
         many = isinstance(request.data, list)
         serializer = self.get_serializer(data= request.data, many = many)
         serializer.is_valid(raise_exception = True)
-        self.perform_create(serializer)     #serializer.save() can also be used
+        self.perform_create(serializer)
+        logger.info(f"Admin {request.user.username} uploaded {len(serializer.data)} stock(s)")
         return Response(serializer.data, status=201)
 
 class StockRUDView(RetrieveUpdateDestroyAPIView):
@@ -116,9 +115,7 @@ class StockRetrieveView(RetrieveAPIView):
         except Stock.DoesNotExist:
             return Response({"error": "Stock not found"}, status= status.HTTP_404_NOT_FOUND)
 
-        #serializer = self.get_serializer(stock)
         serializer = StockSerializer(stock)
-        #data = serializer.data
         cache.set(cache_key, serializer.data, timeout=600)
 
         return Response(serializer.data)
@@ -131,8 +128,8 @@ class BuyOrderView(CreateAPIView):
     def perform_create(self, serializer):
         account = self.request.user.trading_account
         order = serializer.save(account=account, order_type='BUY', status='PENDING')
+        logger.info(f"Buy order placed by {account.user.username}: {order.quantity} of {order.stock.ticker}")
         process_order.delay(order.id)
-        #return Response({"message":"Buy order placed successfully"},status=status.HTTP_200_OK)
 
 class SellOrderView(CreateAPIView):
 
@@ -142,8 +139,8 @@ class SellOrderView(CreateAPIView):
     def perform_create(self,serializer):    
         account = self.request.user.trading_account
         order = serializer.save(account=account, order_type='SELL', status='PENDING')
+        logger.info(f"Sell order placed by {account.user.username}: {order.quantity} of {order.stock.ticker}")
         process_order.delay(order.id)
-        #return Response({"message":"Sell order placed successfully"}, status = status.HTTP_200_OK)
 
 
 

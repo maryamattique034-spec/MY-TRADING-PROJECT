@@ -181,10 +181,3 @@ def send_daily_report():
 
 
 
-#fizza -> balance 10970 
-
-# MSFT ->price 514
-
-
-
-

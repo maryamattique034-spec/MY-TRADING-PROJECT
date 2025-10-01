@@ -20,7 +20,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data['password'])
         user.save()
-        #print("Creating trading account for:",user.username)
         TradingAccount.objects.create(user=user, balance=0.0)
 
         return user
@@ -37,6 +36,7 @@ class InfoSerializer(serializers.ModelSerializer):
         if account:
             return account.balance
         return 0
+
 
 class TradingPositionSerializer(serializers.ModelSerializer):
     class Meta:

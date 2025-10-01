@@ -26,26 +26,37 @@ It allows users to register, manage accounts, trade stocks, and get automated re
 
 ##  Installation & Setup
 
-1. **Create Virtual Environment**
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/maryamattique034-spec/my-trading-project
+   cd firstproject
+
+2. **Create Virtual Environment**
    ```bash
    python -m venv .venv
    source .venv/bin/activate   # MAc
 
-2. **Install Dependencies**
+3. **Install Dependencies**
    pip install -r requirements.txt
 
-3. **Run Database MIgrations**
-
-   SECRET_KEY= 'django-insecure-i!9_q*00tyy8o-!_6rg!0n2h!u9myh9(3owzx=o!^px5cbdl$w'
-   DATABASE_URL=postgres://maryam:1234@localhost:5432/mydatabase
+4. **Setup Environment Variables**
+   create a .env file in the root folder
+    ```env
+   SECRET_KEY=your-secret-key
+   DEBUG=True
+   DATABASE_URL=postgres://<user>:<password>@localhost:5432/<dbname>
    REDIS_URL=redis://localhost:6379/0
+   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 
+5. **Run Database Migrations**
 
-python manage.py migrate
+     python manage.py migrate
 
-3. **Start Django Server**
-python manage.py runserver
+6. **Start Django Server**
 
-3. **Start celery worker**
-celery -A core worker -l info
-celery -A core beat -l info
+    python manage.py runserver
+
+7. **Start celery worker**
+
+   celery -A core worker -l info
+   celery -A core beat -l info
