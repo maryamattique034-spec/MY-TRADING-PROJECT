@@ -135,7 +135,7 @@ def generate_daily_report():
     
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     
-    with open(filepath, "w", newline= "") as csvfile:
+    with open(filepath, "a", newline= "") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["User", "Stock", "Trade Type", "Quantity", "Price", "Date"])
         

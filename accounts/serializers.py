@@ -29,7 +29,7 @@ class InfoSerializer(serializers.ModelSerializer):
     balance = serializers.SerializerMethodField()
     class Meta:
         model= User
-        fields= ['username','email','phone_number','balance']
+        fields= ['id','username','email','phone_number','balance']
 
     def get_balance(self,instance):
         account = TradingAccount.objects.filter(user=instance).first()

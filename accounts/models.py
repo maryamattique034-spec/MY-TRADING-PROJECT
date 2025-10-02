@@ -42,7 +42,6 @@ class LedgerEntry(models.Model):
         ]
 
 
-
 class Stock(BaseModel):
 
     ticker = models.CharField(max_length=10, unique=True)
