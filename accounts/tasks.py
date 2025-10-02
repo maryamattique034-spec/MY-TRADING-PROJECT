@@ -16,10 +16,10 @@ from django.core.mail import EmailMessage
 
 logger = logging.getLogger(__name__)
 
-@shared_task
+@shared_task(queue = "orders")
 def process_order(order_id):
     try:
-        order= Order.objects.get(id=order_id)
+        order= Order.objects.select_related('account__user', 'stock').get(id=order_id)
         account = order.account
         stock = order.stock
         total_cost = Decimal(order.quantity) * stock.price
@@ -100,7 +100,7 @@ def process_order(order_id):
         return
     
     
-@shared_task
+@shared_task(Queue = "stocks")
 def fetch_stock_prices():
     tickers = Stock.objects.values_list("ticker", flat=True)
     for ticker in tickers:
@@ -127,7 +127,7 @@ def fetch_stock_prices():
    
    
         
-@shared_task
+@shared_task(queue = "reports")
 def generate_daily_report():
     today = timezone.now().date()
     filename = f"daily_report_{today}.csv"
@@ -156,7 +156,7 @@ def generate_daily_report():
 
 
 
-@shared_task
+@shared_task(queue = "emails")
 def send_daily_report():
     from django.utils import timezone
     today = timezone.now().date()

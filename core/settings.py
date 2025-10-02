@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 import environ
+from kombu import Queue
 
 #Initialize environment variables
 env = environ.Env(
@@ -51,9 +52,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'django_filters',
+    'debug_toolbar',
+    'silk',
 ]
 
 MIDDLEWARE = [
+    'silk.middleware.SilkyMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,6 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -229,15 +234,30 @@ from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     'fetch-stocks-every-5-min': {
         'task': 'accounts.tasks.fetch_stock_prices',
-        'schedule': crontab(minute='*/10'),
+        'schedule': crontab(minute='*/5'),
     },
     'generate-daily-report': {
         "task": "accounts.tasks.send_daily_report",
-        #"schedule": crontab(hour=23, minute=59),
-        "schedule": crontab(minute='*/2'),
+        "schedule": crontab(hour=23, minute=59),
+
     },
 }
 
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+
+CELERY_TASK_QUEUES = (
+    Queue("default"),
+    Queue("orders"),
+    Queue("emails"),
+    Queue("reports"),
+    Queue("stocks"),
+)
+
+CELERY_TASK_DEFAULT_QUEUE = "default"

@@ -60,7 +60,7 @@ def user_info(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def account_positions(request,id):
-    positions = TradingPosition.objects.filter(account_id=id)
+    positions = TradingPosition.objects.select_related('account__user').filter(account_id=id)
     serializer= TradingPositionSerializer(positions, many=True)
     return Response(serializer.data)
 
@@ -69,7 +69,7 @@ def account_positions(request,id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def account_ledger(request, id):
-    ledger = LedgerEntry.objects.filter(account_id=id)
+    ledger = LedgerEntry.objects.select_related('account__user').filter(account_id=id)
     serializer = LedgerEntrySerializer(ledger, many=True)
     return Response(serializer.data)
 

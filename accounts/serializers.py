@@ -39,14 +39,22 @@ class InfoSerializer(serializers.ModelSerializer):
 
 
 class TradingPositionSerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
     class Meta:
         model = TradingPosition
-        fields= ['stock_ticker','quantity','avg_price']
+        fields= ['username','stock_ticker','quantity','avg_price']
+
+    def get_username(self, obj):
+        return obj.account.user.username
 
 class LedgerEntrySerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
     class Meta:
         model = LedgerEntry
-        fields = ['transaction_type','amount','timestamp']
+        fields = ['username','transaction_type','amount','timestamp']
+
+    def get_username(self, obj):
+        return obj.account.user.username
 
 
 class StockSerializer(serializers.ModelSerializer):
