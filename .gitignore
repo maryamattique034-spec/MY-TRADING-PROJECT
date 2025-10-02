@@ -27,3 +27,6 @@ reports/
 
 # OS files
 .DS_Store
+
+#backup file
+backup.sql
