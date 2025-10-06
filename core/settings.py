@@ -243,7 +243,7 @@ LOGGING = {
 CELERY_BEAT_SCHEDULE = {
     'fetch-stocks-every-5-min': {
         'task': 'accounts.tasks.fetch_stock_prices',
-        'schedule': crontab(minute='*/2'),
+        'schedule': crontab(minute='*/5'),
     },
     'generate-daily-report': {
         "task": "accounts.tasks.send_daily_report",
