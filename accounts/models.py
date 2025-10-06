@@ -10,7 +10,7 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
 
     def __str__(self):
-        return self.username
+         return f"{self.username, self.id}"
 
 class TradingAccount(BaseModel):
     user= models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='trading_account')
@@ -19,7 +19,7 @@ class TradingAccount(BaseModel):
     status = models.BooleanField(default = True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.account_number}"
+        return f"{self.user.username} - {self.id}"
 
 
 class TradingPosition(models.Model):
@@ -27,6 +27,9 @@ class TradingPosition(models.Model):
     stock_ticker = models.CharField(max_length=10, db_index = True)
     quantity=models.IntegerField(default=0)
     avg_price= models.DecimalField(max_digits=12, decimal_places=2,default=0)
+
+    def __str__(self):
+        return f"{self.account.user.id}-{self.account.user.username}-{self.stock_ticker} -{self.quantity}"
 
 
 class LedgerEntry(models.Model):
@@ -40,7 +43,8 @@ class LedgerEntry(models.Model):
             models.Index(fields = ["account", "transaction_type"]),
             models.Index(fields = ["timestamp"]),
         ]
-
+    def __str__(self):
+        return f"{self.account.user.username}-{self.transaction_type}"
 
 class Stock(BaseModel):
 
@@ -62,5 +66,5 @@ class Order(BaseModel):
     status = models.CharField(max_length=10, choices=[('PENDING','Pending'),('COMPLETED','Completed'),('CANCELLED','Cancelled')], default='PENDING', db_index = True)
 
     def __str__(self):
-        return f"{self.account.user.username}-{self.order_type}-{self.quantity} of {self.stock.ticker}"
+        return f"{self.account.user.username}-{self.order_type}-{self.quantity} of {self.stock.ticker}-{self.status}"
 

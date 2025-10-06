@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view,permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from .serializers import RegisterSerializer, InfoSerializer, TradingPositionSerializer, LedgerEntrySerializer, \
     StockSerializer, OrderSerializer
 from rest_framework.response import Response
@@ -7,6 +7,7 @@ from .models import TradingAccount, TradingPosition ,LedgerEntry, Stock
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated , IsAdminUser
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.generics import ListAPIView,CreateAPIView, RetrieveUpdateDestroyAPIView, RetrieveAPIView
 from django.core.cache import cache
 from rest_framework import status
@@ -14,10 +15,36 @@ from rest_framework.views import APIView
 from decimal import Decimal
 from .tasks import process_order
 import logging
+import redis
 logger = logging.getLogger(__name__)
 
 # Create your views here.
+
+class RegisterThrottle(UserRateThrottle):
+    rate = '5/min'
+
+
+
+r = redis.Redis(host='localhost', port=6379, db=0)
+
+def limit_request(identifier, limit=5, period=60):
+    """
+    identifier: user_id or IP
+    limit: max allowed requests
+    period: time window in seconds
+    """
+    key = f"rate:{identifier}"
+    count = r.incr(key)
+
+    if count == 1:
+        r.expire(key, period)
+    if count > limit:
+        return False
+    return True
+
+
 @api_view(['POST'])
+@throttle_classes([RegisterThrottle])
 def register_user(request):
     data=request.data
     serializer= RegisterSerializer(data=data)
@@ -33,7 +60,12 @@ def register_user(request):
 
 @api_view(['POST'])
 def login_user(request):
-    username= request.data.get('username')
+
+    identifier = request.META.get('REMOTE_ADDR')
+    if not limit_request(identifier, limit=5, period=60):
+        return Response({"error": "Too many login attempts. Try again later."},
+                        status=status.HTTP_429_TOO_MANY_REQUESTS)
+    username = request.data.get('username')
     password= request.data.get('password')
     user = authenticate(request ,username= username, password= password)
 
@@ -130,6 +162,7 @@ class BuyOrderView(CreateAPIView):
         order = serializer.save(account=account, order_type='BUY', status='PENDING')
         logger.info(f"Buy order placed by {account.user.username}: {order.quantity} of {order.stock.ticker}")
         process_order.delay(order.id)
+
 
 class SellOrderView(CreateAPIView):
 

@@ -100,7 +100,7 @@ def process_order(order_id):
         return
     
     
-@shared_task(Queue = "stocks")
+@shared_task(queue = "stocks")
 def fetch_stock_prices():
     tickers = Stock.objects.values_list("ticker", flat=True)
     for ticker in tickers:
