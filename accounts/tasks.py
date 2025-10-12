@@ -100,10 +100,14 @@ def process_order(order_id):
         return
     
     
-@shared_task(Queue = "stocks")
+@shared_task(queue = "stocks")
 def fetch_stock_prices():
-    tickers = Stock.objects.values_list("ticker", flat=True)
+    tickers = Stock.objects.values_list("ticker", flat=True).iterator(chunk_size=20)
+    count = 0
     for ticker in tickers:
+        count += 1
+        if count % 20 == 0:
+            logger.info("Fetched {count} stock tickers so far..")
         try: 
             stock_data = yf.Ticker(ticker).info
             price = stock_data.get("currentPrice")
@@ -113,7 +117,7 @@ def fetch_stock_prices():
                 stock.price = price
                 stock.save()
                 
-                cache.set(f"stock:{ticker}", {"price" : price,}, timeout = 300)
+                cache.set(f"stock:{ticker}", {"price" : price}, timeout = 300)
                     
                 logger.info(f"Updated {ticker}: {price} (cached + DB)")
                 

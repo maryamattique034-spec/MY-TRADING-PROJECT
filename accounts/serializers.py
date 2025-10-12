@@ -4,11 +4,13 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import TradingAccount ,TradingPosition, LedgerEntry, Stock, Order
 
+
 User= get_user_model()
 class RegisterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
     class Meta:
         model = User
-        fields = ['username', 'email', 'phone_number','password']
+        fields = ['username','email','phone_number','password']
 
 
     def create(self,validated_data):
