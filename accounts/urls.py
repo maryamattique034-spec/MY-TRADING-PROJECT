@@ -14,7 +14,7 @@ urlpatterns =[
     path('stocks/injest/', StockBulkUploadView.as_view(), name='stock_list_create'),
     path('stocks/<int:pk>/',StockRUDView.as_view(), name='stock_rud'),
 
-    path('stocks/<str:ticker>/',StockRetrieveView.as_view(), name='stock_rud'),
+    path('stocks/<str:ticker>/',StockRetrieveView.as_view(), name='stock_retrieve_by_ticker'),
 
     path('orders/buy/', BuyOrderView.as_view(), name='buy_order'),
 

@@ -12,6 +12,16 @@ class CustomUser(AbstractUser):
     def __str__(self):
          return f"{self.username, self.id}"
 
+from django.db import models
+
+class BaseModel(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
 class TradingAccount(BaseModel):
     user= models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='trading_account')
     account_number = models.CharField(max_length=100, unique=True, default=uuid.uuid4)

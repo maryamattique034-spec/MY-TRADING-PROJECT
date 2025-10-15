@@ -62,7 +62,33 @@ class LedgerEntrySerializer(serializers.ModelSerializer):
 class StockSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stock
-        fields = ['id','ticker','name','exchange','price']
+        fields = ['id', 'ticker', 'name', 'exchange', 'price']
+        extra_kwargs = {
+            'ticker': {'validators': []}
+        }
+
+    def validate(self, data):
+        """
+        Validate duplicates both in DB and within same upload.
+        """
+        # Check duplicates in request data itself
+        if isinstance(data, list):
+            tickers = [item['ticker'] for item in data if 'ticker' in item]
+            duplicates = [t for t in set(tickers) if tickers.count(t) > 1]
+            if duplicates:
+                raise serializers.ValidationError(
+                    {"error": f"Duplicate ticker(s) found in upload: {duplicates}"}
+                )
+
+            #Check duplicates in database
+            existing = list(Stock.objects.filter(ticker__in=tickers)
+                            .values_list('ticker', flat=True))
+            if existing:
+                raise serializers.ValidationError(
+                    {"error": f"Stock(s) with ticker(s) {existing} already exist in DB."}
+                )
+
+        return data
 
 
 class OrderSerializer(serializers.ModelSerializer):

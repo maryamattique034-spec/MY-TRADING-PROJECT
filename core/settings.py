@@ -15,6 +15,7 @@ import os
 import environ
 from kombu import Queue
 from celery.schedules import crontab
+import sys
 
 #Initialize environment variables
 env = environ.Env(
@@ -169,11 +170,15 @@ REST_FRAMEWORK = {
     ],
 
     'DEFAULT_THROTTLE_RATES': {
-        'user': '7/min',
-        'anon': '5/min',
+        'user': '40/min',
+        'anon': '50/min',
     }
 
 }
+if 'test' in sys.argv:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
+
 
 
 from datetime import timedelta
@@ -196,8 +201,11 @@ CACHES = {
 
 
 # settings.py
-CELERY_BROKER_URL = 'redis://redis:6379/0'
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+#for localhost running
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# CELERY_BROKER_URL = 'redis://redis:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

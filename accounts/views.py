@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from .serializers import RegisterSerializer, InfoSerializer, TradingPositionSerializer, LedgerEntrySerializer, \
@@ -21,13 +22,13 @@ logger = logging.getLogger(__name__)
 # Create your views here.
 
 class RegisterThrottle(UserRateThrottle):
-    rate = '5/min'
+    rate = '40/min'
 
 
 
 r = redis.Redis(host='localhost', port=6379, db=0)
 
-def limit_request(identifier, limit=5, period=60):
+def limit_request(identifier, limit=40, period=60):
     """
     identifier: user_id or IP
     limit: max allowed requests
@@ -62,7 +63,7 @@ def register_user(request):
 def login_user(request):
 
     identifier = request.META.get('REMOTE_ADDR')
-    if not limit_request(identifier, limit=5, period=60):
+    if not limit_request(identifier, limit=10, period=60):
         return Response({"error": "Too many login attempts. Try again later."},
                         status=status.HTTP_429_TOO_MANY_REQUESTS)
     username = request.data.get('username')
@@ -107,7 +108,7 @@ def account_ledger(request, id):
 
 
 class StockListView(ListAPIView):
-    queryset = Stock.objects.all()
+    queryset = Stock.objects.all().order_by('id')
     serializer_class = StockSerializer
     permission_classes= [IsAuthenticated]
     filterset_fields = ['ticker', 'exchange']
@@ -118,12 +119,21 @@ class StockBulkUploadView(CreateAPIView):
     permission_classes= [IsAdminUser]
 
     def create(self, request, *args, **kwargs):
-        many = isinstance(request.data, list)
-        serializer = self.get_serializer(data= request.data, many = many)
-        serializer.is_valid(raise_exception = True)
-        self.perform_create(serializer)
-        logger.info(f"Admin {request.user.username} uploaded {len(serializer.data)} stock(s)")
-        return Response(serializer.data, status=201)
+        try:
+            serializer = self.get_serializer(data=request.data, many=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"message":"Stock Uploaded successfully"},status=status.HTTP_201_CREATED)
+        except IntegrityError as e:
+            return Response({
+                "error": "Duplicate ticker found.please check your upload."
+            },status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({
+                "error": str(e)
+            },status=status.HTTP_400_BAD_REQUEST)
+
 
 class StockRUDView(RetrieveUpdateDestroyAPIView):
     queryset = Stock.objects.all()
@@ -174,6 +184,8 @@ class SellOrderView(CreateAPIView):
         order = serializer.save(account=account, order_type='SELL', status='PENDING')
         logger.info(f"Sell order placed by {account.user.username}: {order.quantity} of {order.stock.ticker}")
         process_order.delay(order.id)
+
+
 
 
 
