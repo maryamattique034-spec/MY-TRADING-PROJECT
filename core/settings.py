@@ -165,12 +165,20 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "user": "40/min",
-        "anon": "50/min",
+        "anon": "25/min",
     },
 }
 if "test" in sys.argv:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}
+
+    # Use SQLite in memory DB for tests
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
 
 
 SIMPLE_JWT = {

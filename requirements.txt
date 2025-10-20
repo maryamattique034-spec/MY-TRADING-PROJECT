@@ -11,6 +11,7 @@ psycopg2-binary==2.9.10
 PyJWT==2.10.1
 python-dateutil==2.9.0.post0
 pytz==2025.2
+pytest==8.4.2
 redis==6.4.0
 requests==2.32.5
 yfinance==0.2.66

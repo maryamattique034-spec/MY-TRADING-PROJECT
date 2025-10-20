@@ -5,20 +5,27 @@ from django.contrib.auth import authenticate
 from django.core.cache import cache
 from django.db import IntegrityError
 from rest_framework import status
-from rest_framework.decorators import (api_view, permission_classes,
-                                       throttle_classes)
-from rest_framework.generics import (CreateAPIView, ListAPIView,
-                                     RetrieveAPIView,
-                                     RetrieveUpdateDestroyAPIView)
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.generics import (
+    CreateAPIView,
+    ListAPIView,
+    RetrieveAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import LedgerEntry, Stock, TradingAccount, TradingPosition
-from .serializers import (InfoSerializer, LedgerEntrySerializer,
-                          OrderSerializer, RegisterSerializer, StockSerializer,
-                          TradingPositionSerializer)
+from .serializers import (
+    InfoSerializer,
+    LedgerEntrySerializer,
+    OrderSerializer,
+    RegisterSerializer,
+    StockSerializer,
+    TradingPositionSerializer,
+)
 from .tasks import process_order
 
 logger = logging.getLogger(__name__)
@@ -115,10 +122,33 @@ def account_positions(request, id):
     return Response(serializer.data)
 
 
+# logged in users can see their own positions only not the other's positions
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def account_positions2(request):
+    user = request.user
+    positions = TradingPosition.objects.select_related("account").filter(
+        account__user=user
+    )
+    serializer = TradingPositionSerializer(positions, many=True)
+    return Response(serializer.data)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def account_ledger(request, id):
     ledger = LedgerEntry.objects.select_related("account__user").filter(account_id=id)
+    serializer = LedgerEntrySerializer(ledger, many=True)
+    return Response(serializer.data)
+
+
+# logged in users can see their own history(ledger) only not the other's history
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def account_ledger2(request):
+    ledger = LedgerEntry.objects.select_related("account__user").filter(
+        account__user=request.user
+    )
     serializer = LedgerEntrySerializer(ledger, many=True)
     return Response(serializer.data)
 

@@ -1,16 +1,16 @@
 # from django.test import TestCase
 from unittest.mock import patch
 
+from django.db import connection
+from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import (CustomUser, LedgerEntry, Stock, TradingAccount,
-                     TradingPosition)
+from .models import CustomUser, LedgerEntry, Stock, TradingAccount, TradingPosition
+
 
 # Create your tests here.
-
-
 class AuthTests(APITestCase):
     def setUp(self):
         self.client = APIClient()
@@ -390,3 +390,8 @@ class BuySellOrderTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         mock_process.assert_not_called()
+
+
+class CheckDBTest(TestCase):
+    def test_which_db(self):
+        print("Current DB settings:", connection.settings_dict)
