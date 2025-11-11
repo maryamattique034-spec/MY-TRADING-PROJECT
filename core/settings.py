@@ -44,15 +44,21 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # django channels should be before django apps for websockets support
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # your apps
+    "chat",
     "accounts",
+    # Third-party apps
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "debug_toolbar",
     "silk",
@@ -88,7 +94,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "core.wsgi.application"
+ASGI_APPLICATION = "core.asgi.application"
 
 
 # Database
@@ -104,6 +110,14 @@ DATABASES = {
         "PORT": env("DB_PORT"),
     }
 }
+
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
 
 
 # Password validation
@@ -151,43 +165,17 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.CustomUser"
 
 
-REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 2,
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.AnonRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "user": "40/min",
-        "anon": "25/min",
+# channels configuration
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", "6379")],
+        },
     },
 }
-if "test" in sys.argv:
-    REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
-    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}
 
-    # Use SQLite in memory DB for tests
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
-        }
-    }
-
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=50),  # access token expiry
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # refresh token expiry
-    "AUTH_HEADER_TYPES": ("Bearer",),  # token ka prefix
-}
-
+# REDIS CACHE CONFIGURATION
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -199,7 +187,7 @@ CACHES = {
 }
 
 
-# for localhost running
+# celery configuration
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
 # CELERY_BROKER_URL = 'redis://redis:6379/0'
@@ -209,36 +197,18 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "[{levelname}] {asctime} {name} - {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "orders.log"),
-            "formatter": "verbose",
-        },
-    },
-    "loggers": {
-        "accounts": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": True,
-        },
-    },
-}
+# celery Task Queues
+CELERY_TASK_QUEUES = (
+    Queue("default"),
+    Queue("orders"),
+    Queue("emails"),
+    Queue("reports"),
+    Queue("stocks"),
+)
 
+CELERY_TASK_DEFAULT_QUEUE = "default"
 
+# celery beat schedule
 CELERY_BEAT_SCHEDULE = {
     "fetch-stocks-every-5-min": {
         "task": "accounts.tasks.fetch_stock_prices",
@@ -252,20 +222,88 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
+# rest framework configuration
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "100/min",
+        "anon": "25/min",
+    },
+}
+
+# Disable throttling in tests
+if "test" in sys.argv:
+    REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}
+
+
+# JWT Configuration
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),  # access token expiry
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # refresh token expiry
+    "AUTH_HEADER_TYPES": ("Bearer",),  # token ka prefix
+    "ROTATE_REFRESH_TOKENS": True,  # for token blacklisting
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
+# Email configuration
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{levelname}] {asctime} {name} - {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "app.log"),
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "chat": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "accounts": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+    },
+}
+
+# Debug toolbar configuration
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
-
-
-CELERY_TASK_QUEUES = (
-    Queue("default"),
-    Queue("orders"),
-    Queue("emails"),
-    Queue("reports"),
-    Queue("stocks"),
-)
-
-CELERY_TASK_DEFAULT_QUEUE = "default"
