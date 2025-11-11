@@ -68,6 +68,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
+    "accounts.middleware.RequestLoggerMiddleware",
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -245,7 +246,8 @@ CELERY_BEAT_SCHEDULE = {
     },
     "generate-daily-report": {
         "task": "accounts.tasks.send_daily_report",
-        "schedule": crontab(hour=23, minute=59),
+        # "schedule": crontab(hour=23, minute=59),
+        "schedule": crontab(minute="*/5"),
     },
 }
 

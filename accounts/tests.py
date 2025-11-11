@@ -1,6 +1,8 @@
 # from django.test import TestCase
 from unittest.mock import patch
 
+import fakeredis
+from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase
 from django.urls import reverse
@@ -215,6 +217,8 @@ class StockBulkUploadTests(APITestCase):
         response = self.client.post(self.url, self.data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn("message", response.data)
+        self.assertIn("data", response.data)
+        self.assertEqual(len(response.data["data"]), len(self.data))
 
     def test_bulk_upload_non_admin(self):
         self.client.login(username="user", password="1234")
@@ -270,6 +274,10 @@ class StockRetreiveByTickerTests(APITestCase):
             ticker="AAPL", exchange="NASDAQ", name="Apple Inc.", price=250
         )
         self.url = reverse("stock_retrieve_by_ticker", kwargs={"ticker": "AAPL"})
+
+        # replace django cache with fake redis
+        self.fake_redis = fakeredis.FakeStrictRedis()
+        cache._cache = self.fake_redis
 
     def test_retreive_by_ticker_authenticated(self):
         self.client.login(username="user", password="1234")

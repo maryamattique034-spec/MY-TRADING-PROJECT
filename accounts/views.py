@@ -3,7 +3,6 @@ import logging
 import redis
 from django.contrib.auth import authenticate
 from django.core.cache import cache
-from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.generics import (
@@ -166,22 +165,20 @@ class StockBulkUploadView(CreateAPIView):
     permission_classes = [IsAdminUser]
 
     def create(self, request, *args, **kwargs):
-        try:
-            serializer = self.get_serializer(data=request.data, many=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(
-                {"message": "Stock Uploaded successfully"},
-                status=status.HTTP_201_CREATED,
-            )
-        except IntegrityError:
-            return Response(
-                {"error": "Duplicate ticker found.please check your upload."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=many)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        logger.info(
+            f"Admin {request.user.username} uploaded {len(serializer.data)} stock(s)"
+        )
+        return Response(
+            {
+                "message": f"{len(serializer.data)} stock(s) uploaded successfully",
+                "data": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class StockRUDView(RetrieveUpdateDestroyAPIView):
