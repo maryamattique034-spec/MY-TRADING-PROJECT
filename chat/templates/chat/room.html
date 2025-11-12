@@ -1,0 +1,123 @@
+<!Doctype html>
+<html>
+<head>
+    <meta charset = "utf-8"/>
+    <title>Chat Room</title>
+</head>
+<body>
+    <textarea id = "chat-log" cols="100" rows="20"></textarea><br>
+    <input id = "chat-message-input" type = "text" size="100"><br>
+    <input id = "chat-message-submit" type = "button" value = "Send">
+    {{ room_name|json_script:"room-name" }}
+    <script>
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        const ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYyNTI5NzY3LCJpYXQiOjE3NjI1MjYxNjcsImp0aSI6IjczNTU3MTdiYWQ2YjRkOTg5Y2E4YTUwYTBiNDA2NmI1IiwidXNlcl9pZCI6IjQifQ._okccJToXD5vEXrAZjsYOgCs24IR90fu3I_1qIiE8Gc";
+
+         if (!ACCESS_TOKEN){
+             console.error("Access Token is missing. Authentication failed.");
+             alert("You must be logged in to chat.");
+             throw new Error("Missing Token");
+         }
+
+         const chatSocket = new WebSocket(
+            'ws://'
+            + window.location.host
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
+
+         chatSocket.onopen = function(e) {
+            console.log('Chat socket connected successfully!');
+
+            //send first message with token for authentication
+            chatSocket.send(JSON.stringify({
+                "token": ACCESS_TOKEN
+            }));
+
+
+
+           // Fetch Chat History
+            fetch('/chat/api/messages/history/?room_name=' + roomName, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + ACCESS_TOKEN, // Auth Header for API
+                    'Content-Type': 'application/json'
+                }
+            })
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(msg => {
+                const date = new Date(msg.timestamp);
+                const formattedTime = date.toLocaleString('en-PK', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+                document.querySelector('#chat-log').value += (`${formattedTime} ${msg.username}: ${msg.content}\n`);
+            });
+        })
+        .catch(error => console.error('Error loading chat history:', error));
+};
+
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+
+            //if it's the first auth response
+            if(data.success) {
+                console.log(data.success);
+                return;
+            }
+            if (data.error) {
+                alert(data.error);
+                chatSocket.close();
+                return;
+            }
+
+            const date = new Date(data.timestamp);
+            const formattedTime = date.toLocaleString('en-PK', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+            document.querySelector('#chat-log').value += (`${formattedTime} ${data.username}: ${data.message}\n`);
+
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+            if (e.code === 4001) {
+                alert("Connection closed: Token is invalid or expired.");
+            }
+        };
+
+        document.querySelector('#chat-message-input').focus();
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
+            if (e.key === 'Enter') {
+                document.querySelector('#chat-message-submit').click();
+            }
+
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            if (chatSocket.readyState === WebSocket.OPEN){
+                chatSocket.send(JSON.stringify({
+                'message':message
+            }));
+            messageInputDom.value = '';
+            }else {
+                alert("Chat connection is closed. Please refresh the page.");
+            }
+        };
+    </script>
+</body>
+</html>

@@ -4,7 +4,9 @@ import os
 from decimal import Decimal
 
 import yfinance as yf
+from asgiref.sync import async_to_sync
 from celery import shared_task
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import EmailMessage
@@ -147,12 +149,28 @@ def fetch_stock_prices():
 
             if price:
                 stock = Stock.objects.get(ticker=ticker)
+                old_price = stock.price
                 stock.price = price
                 stock.save()
 
                 cache.set(f"stock:{ticker}", {"price": price}, timeout=300)
 
                 logger.info(f"Updated {ticker}: {price} (cached + DB)")
+
+                # Send Websockets broadcast
+                try:
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        "chat_global",
+                        {
+                            "type": "stock_update",
+                            "ticker": stock.ticker,
+                            "old_price": str(old_price),
+                            "new_price": str(price),
+                        },
+                    )
+                except Exception as e:
+                    logger.error(f"Websocket broadcast failed for {ticker}: {e}")
 
             else:
                 logger.warning(f"Price not found for {ticker}")
