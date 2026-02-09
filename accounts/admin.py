@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import CustomUser, TradingAccount,TradingPosition,LedgerEntry, Stock, Order
+
+from .models import (
+    CustomUser,
+    LedgerEntry,
+    Order,
+    Stock,
+    TradingAccount,
+    TradingPosition,
+)
+
 # Register your models here.
 admin.site.register(CustomUser)
 admin.site.register(TradingAccount)
